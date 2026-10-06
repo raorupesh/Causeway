@@ -58,6 +58,37 @@ class IsolationForestDetector:
             anomalous_features=self._explain(window) if is_anomalous else [],
         )
 
+    def score_series(self, ts: ServiceTimeSeries) -> tuple[np.ndarray, np.ndarray]:
+        """Score every window of a time series in one vectorized pass.
+
+        Returns (decision, is_anomalous) arrays aligned with ts.timestamps.
+        decision is IsolationForest's decision_function: negative means
+        anomalous, and values just above zero are borderline. The first
+        window has no previous value, so it reuses itself as "previous".
+        """
+        n = len(ts.timestamps)
+        if ts.service not in self.models or n == 0:
+            return np.zeros(n), np.zeros(n, dtype=bool)
+
+        def prev(a: np.ndarray) -> np.ndarray:
+            return np.concatenate([a[:1], a[:-1]])
+
+        X = np.column_stack(
+            [
+                ts.latency_p99,
+                ts.latency_p99 - prev(ts.latency_p99),
+                ts.error_rate,
+                ts.error_rate - prev(ts.error_rate),
+                ts.throughput,
+                ts.throughput - prev(ts.throughput),
+                [t.hour for t in ts.timestamps],
+                [t.weekday() for t in ts.timestamps],
+            ]
+        )
+        X_scaled = self.scalers[ts.service].transform(X)
+        decision = self.models[ts.service].decision_function(X_scaled)
+        return decision, decision < 0
+
     def find_anomalous_services(
         self,
         current_metrics: dict[str, ServiceTimeSeries],

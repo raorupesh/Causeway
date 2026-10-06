@@ -5,6 +5,16 @@ build/
 dist/
 wheels/
 *.egg-info
-
+*.log
 # Virtual environments
 .venv
+
+# Tooling caches
+.pytest_cache/
+
+# Local SQLite span store
+causeway.db
+
+# Frontend
+frontend/node_modules/
+frontend/dist/

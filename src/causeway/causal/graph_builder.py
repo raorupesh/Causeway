@@ -124,7 +124,7 @@ class CausalGraphBuilder:
         if len(series) < 3 or np.allclose(series, series[0]):
             return series
         try:
-            is_stationary = adfuller(series)[1] < 0.05
+            is_stationary = adfuller(series, result_object=False)[1] < 0.05
         except Exception:
             is_stationary = True
         return series if is_stationary else np.diff(series)
